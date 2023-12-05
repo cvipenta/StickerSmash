@@ -1,8 +1,10 @@
 import {StatusBar} from 'expo-status-bar';
 import {StyleSheet, Text, View, Image} from 'react-native';
-import {useState} from "react";
+import {useRef, useState} from "react";
 import * as ImagePicker from 'expo-image-picker';
 import {GestureHandlerRootView} from "react-native-gesture-handler";
+import * as MediaLibrary from "expo-media-library";
+import { captureRef } from 'react-native-view-shot';
 
 import ImageViewer from './components/ImageViewer';
 import Button from './components/Button';
@@ -12,14 +14,18 @@ import EmojiPicker from "./components/EmojiPicker";
 import EmojiList from "./components/EmojiList";
 import EmojiSticker from "./components/EmojiSticker";
 
-
 const PlaceholderImage = require('./assets/images/background-image.png');
 
 export default function App() {
+  const [status, requestPermission] = MediaLibrary.usePermissions();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAppOptions, setShowAppOptions] = useState(false);
   const [pickedEmoji, setPickedEmoji] = useState(null);
+
+  if (status === null) {
+    requestPermission();
+  }
 
   const pickImageAsync = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -44,19 +50,35 @@ export default function App() {
   };
 
   const onSaveImageAsync = async () => {
-    // we will implement this later
+    try {
+      const localUri = await captureRef(imageRef, {
+        height: 440,
+        quality: 1,
+      });
+
+      await MediaLibrary.saveToLibraryAsync(localUri);
+      if (localUri) {
+        alert("Saved!");
+      }
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   const onModalClose = () => {
     setIsModalVisible(false);
   };
 
+  const imageRef = useRef();
+
   return (
     <GestureHandlerRootView style={styles.container}>
 
       <View style={styles.imageContainer}>
-        <ImageViewer placeholderImageSource={PlaceholderImage} selectedImage={selectedImage}/>
-        {pickedEmoji !== null ? <EmojiSticker imageSize={40} stickerSource={pickedEmoji} /> : null}
+        <View ref={imageRef} collapsable={false}>
+          <ImageViewer placeholderImageSource={PlaceholderImage} selectedImage={selectedImage}/>
+          {pickedEmoji !== null ? <EmojiSticker imageSize={40} stickerSource={pickedEmoji}/> : null}
+        </View>
       </View>
 
       {showAppOptions
